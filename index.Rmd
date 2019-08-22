@@ -1,36 +1,49 @@
 --- 
-title: "A Minimal Book Example"
-author: "Yihui Xie"
+title: "電子商務平台服務課程講義"
+author: "Sung-Chien Lin"
 date: "`r Sys.Date()`"
 site: bookdown::bookdown_site
 output: bookdown::gitbook
 documentclass: book
-bibliography: [book.bib, packages.bib]
+bibliography: [book.bib]
 biblio-style: apalike
 link-citations: yes
 github-repo: rstudio/bookdown-demo
-description: "This is a minimal example of using the bookdown package to write a book. The output format for this example is bookdown::gitbook."
+description: "世新大學資訊傳播學系電子商務平台服務課程講義，課號：INFO-353-01-A1"
 ---
 
-# Prerequisites
+# 前言 {-}
 
-This is a _sample_ book written in **Markdown**. You can use anything that Pandoc's Markdown supports, e.g., a math equation $a^2 + b^2 = c^2$.
+本課程的目的在介紹電子商務與數位行銷的一些基本概念，並透過案例的研討，思考與設計電子商務平台的服務與行銷。
 
-The **bookdown** package can be installed from CRAN or Github:
+課程內容包括：
 
-```{r eval=FALSE}
-install.packages("bookdown")
-# or the development version
-# devtools::install_github("rstudio/bookdown")
-```
+第一部分 電子商務基礎
 
-Remember each Rmd file contains one and only one chapter, and a chapter is defined by the first-level heading `#`.
+1. 電子商務基本概念
 
-To compile this example to PDF, you need XeLaTeX. You are recommended to install TinyTeX (which includes XeLaTeX): <https://yihui.name/tinytex/>.
+2. 電子商務的商業模式
 
-```{r include=FALSE}
-# automatically create a bib database for R packages
-knitr::write_bib(c(
-  .packages(), 'bookdown', 'knitr', 'rmarkdown'
-), 'packages.bib')
-```
+3. 電子商務基礎建設
+
+4. 電子商務付費系統與安全機制
+
+第二部分 電子商務經營策略
+
+5. 電子商務經營策略
+
+6. 電子商務消費者行為
+
+第三部分 網路行銷
+
+7. 網路行銷基本概念
+
+8. 網路行銷規劃
+
+9. 網路行銷組合
+
+10. 行動商務
+
+第四部分 電子商務與大數據分析
+
+11. 電子商務與大數據分析

@@ -1,0 +1,15 @@
+# 電子商務基礎建設 (#infrastructure)
+
+## 電腦網路的種類
+
+網路依其規模大小，可以區分為：
+
+1. 區域網路 (local area network, LAN)
+
+2. 都會網路 (metropolitan area network, MAN)
+
+3. 廣域網路 (wide area network, WAN)
+
+網際網路(internet)便是一個由上述三種不同規模網路構成、網網相連的電腦網路。
+
+## 無線網路

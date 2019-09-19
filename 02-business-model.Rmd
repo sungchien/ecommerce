@@ -6,9 +6,7 @@
 
 以下透過「經理人」的[一張圖看懂商業模式，找出關鍵策略活動](https://www.managertoday.com.tw/articles/view/29827)，說明商業模式的要素：
 
-```{r echo=FALSE}
-knitr::include_graphics("http://3.bp.blogspot.com/-pPmCrvZFLnA/VGckKLWvuMI/AAAAAAAAZXU/aeFbEPxnQf8/2013_02_huo_li_shi_dai_.jpg")
-```
+![Business Model Canvas](http://3.bp.blogspot.com/-pPmCrvZFLnA/VGckKLWvuMI/AAAAAAAAZXU/aeFbEPxnQf8/2013_02_huo_li_shi_dai_.jpg)
 
 1.目標客層（Customer Segments, CS）：企業或組織所要服務的一個或數個客群。
 
@@ -30,9 +28,7 @@ knitr::include_graphics("http://3.bp.blogspot.com/-pPmCrvZFLnA/VGckKLWvuMI/AAAAA
 
 以較口語的方式表達上面的概念：
 
-```{r echo=FALSE}
-knitr::include_graphics("image/img-1504513809-84597.jpg")
-```
+![](image/img-1504513809-84597.jpg)
 
 ## B2C的商業模式
 

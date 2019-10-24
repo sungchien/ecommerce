@@ -14,13 +14,51 @@ https://www.ipsos.com/sites/default/files/ct/publication/documents/2018-01/n045_
 - 購買行為 (例如以前的購買、瀏覽紀錄、運送偏好)
 
 ## 基於RFM三種資訊的顧客區隔分析
-我選擇針對每個客戶最近一次購買的時間，購買頻率和貨幣價值來計算和使用指標。 這三個變量統稱為RFM，通常在出於市場營銷目的的客戶細分中使用。
+我選擇針對每個顧客的最近購買日期、購買頻率和貨幣價值來計算和使用指標。 這三個變量統稱為RFM，通常在出於市場營銷目的的客戶細分中使用。
 
-[線上零售資料集](https://archive.ics.uci.edu/ml/datasets/Online+Retail)
+載入套件
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+讀取資料集檔案[線上零售資料集](https://archive.ics.uci.edu/ml/datasets/Online+Retail)
 
 ```{r}
-library(readxl)
-
 Online_Retail <- read_excel("Online Retail.xlsx")
 ```
+
+檢視資料集，這是一個發票的檔案，包含發票編號(InvoiceNo)、(StockCode)、描述(Description)、數量(Quantity)、發票日期(InvoiceDate)、單價(UnitPrice)、顧客識別號(CustomerID)、國別(Country)等變數欄位。
+```{r}
+summary(Online_Retail)
+```
+
+其中，顧客識別號(CustomerID)有許多NA(Not-Available)，先將這些資料去除，保留非NA的資料
+```{r}
+Online_Retail <- Online_Retail %>%
+  filter(!is.na(CustomerID))
+```
+
+發票日期(InvoiceDate)在2010-12-01到2011-12-09間，稍微超過一年，為了方便計算起見，取2010-12-09到2011-12-09之間的資料
+```{r}
+Online_Retail <- Online_Retail %>%
+  filter(InvoiceDate>="2010-12-09")
+```
+
+依據發票編號是否包含"C"，將發票紀錄區分為購買(purchase)或退貨(return)兩類
+```{r}
+Online_Retail <- Online_Retail %>%
+  mutate(purchase.invoice=ifelse(grepl("C", InvoiceNo, fixed=TRUE), 0, 1))
+```
+
+```{r}
+customers <- Online_Retail %>%
+  mutate(date.diff = as.numeric(as.Date("2011-12-10") - as.Date(InvoiceDate))) %>% #計算購買或退貨日期與2011-12-10差幾天
+  
+  group_by(CustomerID, purchase.invoice) %>% #依據CustomerID與購買或退貨，將發票紀錄分組
+  summarise(recency = min(date.diff),        #最近購買日期
+            frequency=n_distinct(InvoiceNo), #購買頻率(一年內購買幾次)
+            monetary=sum(Quantity*UnitPrice))#購買金額
+```
+
 

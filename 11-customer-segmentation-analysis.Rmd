@@ -51,14 +51,30 @@ Online_Retail <- Online_Retail %>%
   mutate(purchase.invoice=ifelse(grepl("C", InvoiceNo, fixed=TRUE), 0, 1))
 ```
 
+# 計算每個顧客的最近購買日期(與2011-12-10的差)和購買頻率(一年的購買次數)
 ```{r}
 customers <- Online_Retail %>%
-  mutate(date.diff = as.numeric(as.Date("2011-12-10") - as.Date(InvoiceDate))) %>% #計算購買或退貨日期與2011-12-10差幾天
-  
-  group_by(CustomerID, purchase.invoice) %>% #依據CustomerID與購買或退貨，將發票紀錄分組
+  filter(purchase.invoice==1) %>% #只計算購買紀錄，去除退貨紀錄
+  mutate(date.diff = as.numeric(as.Date("2011-12-10") - as.Date(InvoiceDate))) %>% #計算購買日期與2011-12-10差幾天
+  group_by(CustomerID) %>% #依據CustomerID，將發票紀錄分組
   summarise(recency = min(date.diff),        #最近購買日期
-            frequency=n_distinct(InvoiceNo), #購買頻率(一年內購買幾次)
-            monetary=sum(Quantity*UnitPrice))#購買金額
+            frequency=n_distinct(InvoiceNo)) #購買頻率(一年內購買幾次)
 ```
 
+# 計算每個顧客的購買金額(減去退貨的情形)
+```{r}
+customers1 <- Online_Retail %>%
+  group_by(CustomerID) %>%
+  summarise(monetary=sum(UnitPrice*Quantity)) %>%
+  filter(monetary>=0)
+```
+
+```{r}
+customers <- customers %>%
+  inner_join(customers1)
+```
+
+```{r}
+
+```
 

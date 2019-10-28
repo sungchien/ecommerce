@@ -45,23 +45,24 @@ Online_Retail <- Online_Retail %>%
   filter(InvoiceDate>="2010-12-09")
 ```
 
-依據發票編號是否包含"C"，將發票紀錄區分為購買(purchase)或退貨(return)兩類
-```{r}
-Online_Retail <- Online_Retail %>%
-  mutate(purchase.invoice=ifelse(grepl("C", InvoiceNo, fixed=TRUE), 0, 1))
-```
+計算每個顧客的最近購買日期(與2011-12-10的差)和購買頻率(一年的購買次數)。
 
-# 計算每個顧客的最近購買日期(與2011-12-10的差)和購買頻率(一年的購買次數)
+- 首先，依據發票編號是否包含"C"，利用`!grepl()`函數將發票紀錄區分為購買(purchase)或退貨(return)兩類，只計算購買紀錄(沒有包含C)，去除退貨紀錄(包含C)。
+- 計算購買日期與2011-12-10差幾天，並利用`as.numeric()`函數將其資料型態轉成numeric
+- 依據CustomerID，將發票紀錄分組，統計每個使用者的最近購買日期(與2011-12-10差距最小者)和購買頻率(不同的發票編號，一年內購買幾次)
 ```{r}
 customers <- Online_Retail %>%
-  filter(purchase.invoice==1) %>% #只計算購買紀錄，去除退貨紀錄
+  filter(!grepl("C", InvoiceNo)) %>% #只計算購買紀錄，去除退貨紀錄
   mutate(date.diff = as.numeric(as.Date("2011-12-10") - as.Date(InvoiceDate))) %>% #計算購買日期與2011-12-10差幾天
   group_by(CustomerID) %>% #依據CustomerID，將發票紀錄分組
   summarise(recency = min(date.diff),        #最近購買日期
             frequency=n_distinct(InvoiceNo)) #購買頻率(一年內購買幾次)
 ```
 
-# 計算每個顧客的購買金額(減去退貨的情形)
+計算每個顧客的購買金額(減去退貨的情形)
+
+- 依據CustomerID，將發票紀錄分組，統計每個使用者的消費紀錄總和(單價*數量)
+- 去除消費紀錄總和為負的情形(退貨金額大於購買金額)
 ```{r}
 customers1 <- Online_Retail %>%
   group_by(CustomerID) %>%
@@ -69,12 +70,62 @@ customers1 <- Online_Retail %>%
   filter(monetary>=0)
 ```
 
+整合最近購買日期、購買頻率和購買金額的資料
 ```{r}
 customers <- customers %>%
   inner_join(customers1)
 ```
 
+檢視各特徵的統計敘述
 ```{r}
+summary(customers)
+```
+
+以直方圖呈現最近購買日期特徵的分布情形，以15日為一個區間
+```{r}
+max_pos <- ceiling(max(customers$recency)/15)*15
+x_breaks <- seq(0, max_pos, 15)
+
+customers %>%
+  ggplot(aes(x=recency)) +
+  geom_histogram(breaks=x_breaks) +
+  scale_x_continuous(breaks=x_breaks) +
+  labs(x="最近購買日期特徵的區間", y="顧客數") +
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour="grey50"),
+        panel.grid.major.y = element_line(colour="grey70"),
+        axis.text.x =element_text(angle=60, vjust=0.6))
+```
+
+```{r}
+customers <- customers %>%
+  mutate(recency.log=log10(recency))
+
+summary(customers)
+```
+
+```{r}
+max_pos <- ceiling(max(customers$recency.log)/0.25)*0.25
+x_breaks <- seq(0, max_pos, 0.25)
+
+customers %>%
+  ggplot(aes(x=recency.log)) +
+  geom_histogram(breaks=x_breaks) +
+  scale_x_continuous(breaks=x_breaks) +
+  labs(x="最近購買日期特徵的區間", y="顧客數") +
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour="grey50"),
+        panel.grid.major.y = element_line(colour="grey70"),
+        axis.text.x =element_text(angle=60, vjust=0.6))
+
+```
+
+```{r}
+customers <- customers %>%
+  mutate(frequency.log=log10(frequency)) %>%
+  mutate(monetary.log=log10(monetary+0.01))
+
+summary(customers)
 
 ```
 

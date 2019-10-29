@@ -146,7 +146,7 @@ customers <- customers %>%
 
 recency.cd
 ```
-一群的最近購買日期較久，有1027個顧客；另一群的最近購買日期較近，有3242個顧客。
+一群的最近購買日期較近，有3242個顧客；另一群的最近購買日期較久，有1027個顧客。
 
 購買頻率的分布情形
 ```{r}
@@ -204,14 +204,14 @@ customers <- customers %>%
 frequency.cd <- customers%>%
   group_by(frequency.cl) %>%
   summarise(cl_size=n(), cl_frequency=mean(frequency), cl_frequency.log=mean(frequency.log)) %>%
-  mutate(frequency.idx=row_number(desc(cl_frequency)))
+  mutate(frequency.idx=row_number(desc(cl_frequency.log)))
 
 customers <- customers %>%
   left_join(select(frequency.cd, frequency.cl, frequency.idx))
 
 frequency.cd
 ```
-分為三群，其中頻率最高的一群只有537位顧客，頻率中等的一群有1430位顧客，最低者則為2302位顧客。
+分為三群，其中頻率最高的一群只有536位顧客，頻率中等的一群有1431位顧客，最低者則為2302位顧客。
 
 ```{r}
 customers %>%
@@ -258,23 +258,45 @@ cl.res %>%
 
 ```
 
+將購買頻率分為三群時，解釋變量超過0.75
 ```{r}
 cl <- kmeans(customers$monetary.log, 3, nstart=20)
 
 customers <- customers %>%
   mutate(monetary.cl = cl$cluster)
 
-customers %>%
+monetary.cd <- customers %>%
   group_by(monetary.cl) %>%
-  summarise(cl_size=n(), cl_monetary=mean(monetary), cl_monetary.log=mean(monetary.log))
-```
+  summarise(cl_size=n(), cl_monetary=mean(monetary), cl_monetary.log=mean(monetary.log)) %>%
+  mutate(monetary.idx=row_number(desc(cl_monetary.log)))
 
+customers <- customers %>%
+  left_join(select(monetary.cd, monetary.cl, monetary.idx))
+
+monetary.cd
+```
+分為三群，其中消費金額最高的一群只有1027位顧客，消費金額中等的一群有1851位顧客，最低者則為1391位顧客。
+
+進行顧客區隔分析
 ```{r}
 customers %>%
-  group_by(recency.cl, frequency.cl, monetary.cl) %>%
-  summarise(c=n(), cl_recency=mean(recency), cl_frequency=mean(frequency), cl_monetary=mean(monetary)) %>%
+  group_by(recency.idx, frequency.idx, monetary.idx) %>%
+  summarise(c=n()) %>%
   ungroup() %>%
-  select(cl_recency, cl_frequency, cl_monetary, c) %>%
-  arrange(cl_recency, desc(cl_frequency), desc(cl_monetary))
+  arrange(recency.idx, frequency.idx, monetary.idx)
 ```
 
+曾於近期購買且購買頻率高的顧客(recency.idx==1 & frequency.idx==1)，購買金額大多較高，在monetary.idx==1部分，超過90%，monetary.idx==2，僅佔8.5%，沒有monetary.idx==3。近期購買、購買頻率高且購買金額高的顧客所消費的金額佔全體的57%。
+```{r}
+total.monetary <- sum(customers$monetary)
+
+customers %>%
+  group_by(recency.idx, frequency.idx, monetary.idx) %>%
+  summarise(c=n(), monetary_prop=sum(monetary)/total.monetary)
+```
+
+recency.idx==1 & (frequency.idx==2 | frequency.idx==3) & monetary.idx==1 具有潛力的顧客
+
+frequency.idx==1 忠誠度高的顧客，recency.idx==2 & frequency.idx==1 即將流失的忠誠顧客
+
+recency.idx==2 & frequency.idx==3 偶爾來，現在已沒有出現的顧客

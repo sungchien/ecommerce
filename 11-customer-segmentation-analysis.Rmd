@@ -28,7 +28,7 @@ library(readxl)
 Online_Retail <- read_excel("Online Retail.xlsx")
 ```
 
-檢視資料集，這是一個發票的檔案，包含發票編號(InvoiceNo)、(StockCode)、描述(Description)、數量(Quantity)、發票日期(InvoiceDate)、單價(UnitPrice)、顧客識別號(CustomerID)、國別(Country)等變數欄位。
+檢視資料集，這是一個發票的檔案，包含發票編號(InvoiceNo)、貨品編號(StockCode)、描述(Description)、數量(Quantity)、發票日期(InvoiceDate)、單價(UnitPrice)、顧客識別號(CustomerID)、國別(Country)等變數欄位。
 ```{r}
 summary(Online_Retail)
 ```
@@ -42,7 +42,7 @@ Online_Retail <- Online_Retail %>%
 發票日期(InvoiceDate)在2010-12-01到2011-12-09間，稍微超過一年，為了方便計算起見，取2010-12-09到2011-12-09之間的資料
 ```{r}
 Online_Retail <- Online_Retail %>%
-  filter(InvoiceDate>="2010-12-09")
+  filter(InvoiceDate>=as.Date("2010-12-09"))
 ```
 
 計算每個顧客的最近購買日期(與2011-12-10的差)和購買頻率(一年的購買次數)。
@@ -97,35 +97,184 @@ customers %>%
         axis.text.x =element_text(angle=60, vjust=0.6))
 ```
 
+根據K-means集群分析，劃分最近購買日期的區間
 ```{r}
-customers <- customers %>%
-  mutate(recency.log=log10(recency))
+cl.res <- data.frame(k=integer(),
+ tot.withinss=numeric(),
+ betweenss=numeric(),
+ totss=numeric(),
+ rsquared=numeric())
 
-summary(customers)
+for (k in 1:10) {
+  cl <- kmeans(customers$recency, k, nstart=20)
+  cl.res[k, "k"] <- k
+  cl.res[k, "tot.withinss"] <- cl$tot.withinss
+  cl.res[k, "betweenss"] <- cl$betweenss
+  cl.res[k, "totss"] <- cl$totss
+  cl.res[k, "rsquared"] <- cl$betweenss/cl$totss
+}
 ```
 
+k(劃分區間數)=1到10的解釋變量變化情形
 ```{r}
-max_pos <- ceiling(max(customers$recency.log)/0.25)*0.25
-x_breaks <- seq(0, max_pos, 0.25)
+cl.res %>%
+  ggplot(aes(x=k, y=rsquared)) +
+  geom_line() +
+  scale_x_continuous(breaks=1:10) +
+  scale_y_continuous(breaks=seq(0, 1.0, 0.1)) +
+  labs(x="分群數", y="解釋變量") +
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour="grey50"),
+        panel.grid.major = element_line(colour="grey80"),
+        panel.grid.minor.y = element_line(colour="grey90"))
+```
+分為兩群，便有約80%的解釋變量
 
+```{r}
+cl <- kmeans(customers$recency, 2, nstart=20)
+
+customers <- customers %>%
+  mutate(recency.cl = cl$cluster)
+
+recency.cd <- customers %>%
+  group_by(recency.cl) %>%
+  summarise(cl_size=n(), cl_recency=mean(recency)) %>%
+  mutate(recency.idx = row_number(cl_recency))
+
+customers <- customers %>%
+  left_join(select(recency.cd, recency.cl, recency.idx))
+
+recency.cd
+```
+一群的最近購買日期較久，有1027個顧客；另一群的最近購買日期較近，有3242個顧客。
+
+購買頻率的分布情形
+```{r}
 customers %>%
-  ggplot(aes(x=recency.log)) +
-  geom_histogram(breaks=x_breaks) +
-  scale_x_continuous(breaks=x_breaks) +
-  labs(x="最近購買日期特徵的區間", y="顧客數") +
+  ggplot(aes(x=frequency)) +
+  geom_histogram(breaks=seq(0, max(customers$frequency), 10)) +
+  scale_x_continuous(breaks=seq(0, max(customers$frequency), 10)) +
+  labs(x="購買頻率區間特徵的區間", y="顧客數") +
   theme(panel.background = element_blank(),
         axis.line = element_line(colour="grey50"),
         panel.grid.major.y = element_line(colour="grey70"),
         axis.text.x =element_text(angle=60, vjust=0.6))
+```
+
+發現大多集中於較小頻率，將購買頻率的值取對數
+
+```{r}
+customers <- customers %>%
+  mutate(frequency.log=log(frequency))
+
+cl.res <- data.frame(k=integer(),
+ tot.withinss=numeric(),
+ betweenss=numeric(),
+ totss=numeric(),
+ rsquared=numeric())
+
+for (k in 1:10) {
+  cl <- kmeans(customers$frequency.log, k, nstart=20)
+  cl.res[k, "k"] <- k
+  cl.res[k, "tot.withinss"] <- cl$tot.withinss
+  cl.res[k, "betweenss"] <- cl$betweenss
+  cl.res[k, "totss"] <- cl$totss
+  cl.res[k, "rsquared"] <- cl$betweenss/cl$totss
+}
+
+cl.res %>%
+  ggplot(aes(x=k, y=rsquared)) +
+  geom_line() +
+  scale_x_continuous(breaks=1:10) +
+  scale_y_continuous(breaks=seq(0, 1.0, 0.1)) +
+  labs(x="分群數", y="解釋變量") +
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour="grey50"),
+        panel.grid.major = element_line(colour="grey80"),
+        panel.grid.minor.y = element_line(colour="grey90"))
+```
+
+將購買頻率分為三群時，解釋變量超過0.75
+```{r}
+cl <- kmeans(customers$frequency.log, 3, nstart=20)
+
+customers <- customers %>%
+  mutate(frequency.cl = cl$cluster)
+
+frequency.cd <- customers%>%
+  group_by(frequency.cl) %>%
+  summarise(cl_size=n(), cl_frequency=mean(frequency), cl_frequency.log=mean(frequency.log)) %>%
+  mutate(frequency.idx=row_number(desc(cl_frequency)))
+
+customers <- customers %>%
+  left_join(select(frequency.cd, frequency.cl, frequency.idx))
+
+frequency.cd
+```
+分為三群，其中頻率最高的一群只有537位顧客，頻率中等的一群有1430位顧客，最低者則為2302位顧客。
+
+```{r}
+customers %>%
+  ggplot(aes(x=monetary)) +
+  geom_histogram(breaks=seq(0, max(customers$monetary), 10000)) +
+  scale_x_continuous(breaks=seq(0, max(customers$monetary), 10000)) +
+  labs(x="購買金額區間特徵的區間", y="顧客數") +
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour="grey50"),
+        panel.grid.major.y = element_line(colour="grey70"),
+        axis.text.x =element_text(angle=60, vjust=0.6))
+```
+
+購買金額差異相當大，大多數的顧客僅有少量購買金額，所以先取對數
+```{r}
+customers <- customers %>%
+  mutate(monetary.log=log(monetary+1))
+
+cl.res <- data.frame(k=integer(),
+ tot.withinss=numeric(),
+ betweenss=numeric(),
+ totss=numeric(),
+ rsquared=numeric())
+
+for (k in 1:10) {
+  cl <- kmeans(customers$monetary.log, k, nstart=20)
+  cl.res[k, "k"] <- k
+  cl.res[k, "tot.withinss"] <- cl$tot.withinss
+  cl.res[k, "betweenss"] <- cl$betweenss
+  cl.res[k, "totss"] <- cl$totss
+  cl.res[k, "rsquared"] <- cl$betweenss/cl$totss
+}
+
+cl.res %>%
+  ggplot(aes(x=k, y=rsquared)) +
+  geom_line() +
+  scale_x_continuous(breaks=1:10) +
+  scale_y_continuous(breaks=seq(0, 1.0, 0.1)) +
+  labs(x="分群數", y="解釋變量") +
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour="grey50"),
+        panel.grid.major = element_line(colour="grey80"),
+        panel.grid.minor.y = element_line(colour="grey90"))
 
 ```
 
 ```{r}
+cl <- kmeans(customers$monetary.log, 3, nstart=20)
+
 customers <- customers %>%
-  mutate(frequency.log=log10(frequency)) %>%
-  mutate(monetary.log=log10(monetary+0.01))
+  mutate(monetary.cl = cl$cluster)
 
-summary(customers)
+customers %>%
+  group_by(monetary.cl) %>%
+  summarise(cl_size=n(), cl_monetary=mean(monetary), cl_monetary.log=mean(monetary.log))
+```
 
+```{r}
+customers %>%
+  group_by(recency.cl, frequency.cl, monetary.cl) %>%
+  summarise(c=n(), cl_recency=mean(recency), cl_frequency=mean(frequency), cl_monetary=mean(monetary)) %>%
+  ungroup() %>%
+  select(cl_recency, cl_frequency, cl_monetary, c) %>%
+  arrange(cl_recency, desc(cl_frequency), desc(cl_monetary))
 ```
 

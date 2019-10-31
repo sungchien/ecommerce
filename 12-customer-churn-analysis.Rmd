@@ -105,10 +105,22 @@ Ntrans <- txns %>%
   filter(N>20)
 ```
 
+每一位顧客的
 ```{r}
 ecdf_df <- time_between %>%
   group_by(CustomerID) %>%
-  arrange(dt) %>%
-  mutate(e_cdf = 1:length(dt)/length(dt))
+  arrange(CustomerID, dt) %>%
+  mutate(e_cdf = 1:length(dt)/length(dt)) %>%
+  ungroup
+```
+
+```{r}
+approx(ecdf_df$e_cdf[ecdf_df$CustomerID==ecdf_df$CustomerID[1]], ecdf_df$dt[ecdf_df$CustomerID==ecdf_df$CustomerID[1]], xout=0.9)
+```
+
+```{r}
+x <- percentiles %>%
+  filter(CustomerID==.$CustomerID[1]) %>%
+  arrange(dt)
 ```
 

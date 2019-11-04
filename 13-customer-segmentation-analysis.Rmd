@@ -1,9 +1,5 @@
 # 顧客區隔分析 {#customer-segmentation-analysis}
 
-http://www.kimberlycoffey.com/blog/2016/8/k-means-clustering-for-customer-segmentation
-
-https://www.ipsos.com/sites/default/files/ct/publication/documents/2018-01/n045_mkt_high_definition_customers_a_powerful_segmentation.pdf
-
 顧客區隔分析(customer segmentation analysis)的目的是找到具有相同或相似屬性的顧客群，並將顧客群的特色樣貌及描繪出來，用來了解顧客的需求以及顧客如何在許多產品或服務中做出選擇。這些資訊能夠幫助公司找出最合適的目標市場，用最佳的行銷策略達到目標及該公司優於其他競爭者的地方。有效的顧客區隔研究可以定義出潛力看好的目標市場。
 
 進行顧客區隔分析時，最常用來做為區隔根據的顧客特徵是：
@@ -33,16 +29,11 @@ Online_Retail <- read_excel("Online Retail.xlsx")
 summary(Online_Retail)
 ```
 
-其中，顧客識別號(CustomerID)有許多NA(Not-Available)，先將這些資料去除，保留非NA的資料
+首先，去除顧客識別號(CustomerID)資料中的NA(Not-Available)，保留非NA的資料，然後再選取發票日期(InvoiceDate)在2010-12-09到2011-12-09之間的資料。
 ```{r}
 Online_Retail <- Online_Retail %>%
-  filter(!is.na(CustomerID))
-```
-
-發票日期(InvoiceDate)在2010-12-01到2011-12-09間，稍微超過一年，為了方便計算起見，取2010-12-09到2011-12-09之間的資料
-```{r}
-Online_Retail <- Online_Retail %>%
-  filter(InvoiceDate>=as.Date("2010-12-09"))
+  filter(!is.na(CustomerID)) %>% #去除去除顧客識別號中的NA
+  filter(InvoiceDate>=as.POSIXct("2010-12-09")) #選取2010-12-09到2011-12-09之間的資料
 ```
 
 計算每個顧客的最近購買日期(與2011-12-10的差)和購買頻率(一年的購買次數)。

@@ -1,0 +1,258 @@
+# 探索性資料分析 {#exploratory-data-analysis}
+
+載入套件
+```{r}
+library(tidyverse)
+library(readxl)
+library(lubridate)
+```
+
+讀取資料集檔案[線上零售資料集](https://archive.ics.uci.edu/ml/datasets/Online+Retail)
+
+```{r}
+Online_Retail <- read_excel("Online Retail.xlsx")
+```
+
+檢視資料集，這是一個交易發票的檔案，包含發票編號(InvoiceNo)、貨品編號(StockCode)、描述(Description)、數量(Quantity)、發票日期(InvoiceDate)、單價(UnitPrice)、顧客識別號(CustomerID)、國別(Country)等變數欄位。
+```{r}
+summary(Online_Retail)
+```
+
+其中，顧客識別號(CustomerID)有許多NA(Not-Available)，先將這些資料去除，保留非NA的資料
+```{r}
+Online_Retail <- Online_Retail %>%
+  filter(!is.na(CustomerID))
+```
+
+發票日期(InvoiceDate)在2010-12-01到2011-12-09間，稍微超過一年，為了方便計算起見，取2010-12-09到2011-12-09之間的資料
+```{r}
+Online_Retail <- Online_Retail %>%
+  filter(InvoiceDate>=as.POSIXct("2010-12-09 00:00:00", tz="UTC"))
+```
+
+查看數量(Quantity)為負或0的情形
+```{r}
+Online_Retail %>%
+  filter(Quantity<=0)
+```
+當Quantity<=0時，該筆交易為取消，InvoiceNo的首字為C
+
+查看單價(UnitPrice)為負或0的情形
+```{r}
+Online_Retail %>%
+  filter(UnitPrice==0)
+```
+
+再檢視一次資料集
+```{r}
+summary(Online_Retail)
+```
+
+統計各國上的交易數(不同的發票號碼)、顧客數(不同的顧客識別號)
+```{r}
+Online_Retail %>%
+  group_by(Country) %>%
+  summarise(nInvoice=n_distinct(InvoiceNo), nCustomers=n_distinct(CustomerID)) %>%
+  arrange(desc(nInvoice))
+```
+以英國(United Kingdom)為此線上商店的主要銷售國家，其餘的重要國家也大都在歐洲
+
+查看主要顧客的購買次數與金額(不包含取消)
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  filter(TransactionType=="Purchase") %>%
+  group_by(CustomerID) %>%
+  summarise(TransactionNo=n_distinct(InvoiceNo), Total=sum(UnitPrice*Quantity)) %>%
+  arrange(desc(Total))
+```
+
+查看主要顧客的取消次數與金額
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  filter(TransactionType=="Cancel") %>%
+  group_by(CustomerID) %>%
+  summarise(TransactionNo=n_distinct(InvoiceNo), Total=sum(UnitPrice*Quantity)) %>%
+  arrange(Total)
+```
+取消金額較大的顧客的購買金額
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  group_by(CustomerID, TransactionType) %>%
+  summarise(Total=sum(UnitPrice*Quantity)) %>%
+  spread(key=TransactionType, value=Total, fill=0) %>%
+  mutate(Ratio=abs(Cancel)/Purchase) %>%
+  arrange(Cancel)
+```
+
+每天的購買筆數與金額
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  filter(TransactionType=="Purchase") %>%
+  mutate(PurchaseDate=as.Date(InvoiceDate)) %>%
+  group_by(PurchaseDate) %>%
+  summarise(TransactionNo=n_distinct(InvoiceNo), Total=sum(UnitPrice*Quantity)) %>%
+  right_join(data.frame(PurchaseDate=seq(as.Date("2010-12-09"),as.Date("2011-12-09"), by="1 day")))
+```
+
+將每天的購買金額畫成線圖
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  filter(TransactionType=="Purchase") %>%
+  mutate(PurchaseDate=as.Date(InvoiceDate)) %>%
+  group_by(PurchaseDate) %>%
+  summarise(Total=sum(UnitPrice*Quantity)) %>%
+  right_join(data.frame(PurchaseDate=seq(as.Date("2010-12-09"),as.Date("2011-12-09"), by="1 day"))) %>%
+  mutate(Total=ifelse(is.na(Total), 0, Total)) %>%
+  ggplot(aes(x=PurchaseDate, y=Total)) +
+  geom_line() +
+  scale_x_date(date_breaks="1 month", date_labels="%Y-%m") +
+  labs(x="購買日期", y="購買金額總數") +
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour="grey50"),
+        axis.text.x = element_text(angle=60, hjust=1))
+```
+1. 12月初有購買的高峰(聖誕節？)
+2. 似乎有週期性的變化？
+
+挑選2月到五月之間的日期，查看購買金額總數是否有周期變化？
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  filter(TransactionType=="Purchase") %>%
+  mutate(PurchaseDate=as.Date(InvoiceDate)) %>%
+  filter(PurchaseDate>=as.Date("2011/02/01") & PurchaseDate<=as.Date("2011/05/31")) %>%
+  group_by(PurchaseDate) %>%
+  summarise(Total=sum(UnitPrice*Quantity)) %>%
+  right_join(data.frame(PurchaseDate=seq(as.Date("2011-02-01"),as.Date("2011-05-31"), by="1 day"))) %>%
+  mutate(Total=ifelse(is.na(Total), 0, Total)) %>%
+  ggplot(aes(x=PurchaseDate, y=Total)) +
+  geom_line() +
+  scale_x_date(date_breaks="1 month", date_labels="%Y-%m", date_minor_breaks = "1 week") +
+  labs(x="購買日期", y="購買金額總數") +
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour="grey50"),
+        axis.text.x = element_text(angle=60, hjust=1),
+        panel.grid.minor.x = element_line(colour = "grey80"))
+```
+從此圖很明顯地看出2月到5月間有明顯的週期變化情形
+
+探討一週間的哪一天的購買金額總數最高
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  filter(TransactionType=="Purchase") %>%
+  mutate(PurchaseDate=as.Date(InvoiceDate)) %>%
+  group_by(PurchaseDate) %>%
+  summarise(Total=sum(UnitPrice*Quantity)) %>%
+  mutate(WeekDay=wday(PurchaseDate, label=TRUE)) %>%
+  ggplot(aes(x=WeekDay, y=Total)) +
+  geom_boxplot()
+```
+
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  filter(TransactionType=="Purchase") %>%
+  mutate(PurchaseHour=hour(InvoiceDate)) %>%
+  group_by(PurchaseHour) %>%
+  summarise(Total=sum(UnitPrice*Quantity)) %>%
+  ggplot(aes(x=PurchaseHour, y=Total)) +
+  geom_col() +
+  scale_x_continuous(breaks=seq(6, 20))
+```
+
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  filter(TransactionType=="Purchase") %>%
+  mutate(PurchaseDate=as.Date(InvoiceDate), PurchaseHour=hour(InvoiceDate)) %>%
+  group_by(PurchaseDate, PurchaseHour) %>%
+  summarise(Total.Hour=sum(UnitPrice*Quantity)) %>%
+  ungroup() %>%
+  mutate(WeekDay=wday(PurchaseDate, label=TRUE)) %>%
+  group_by(WeekDay, PurchaseHour) %>%
+  summarise(Total=median(Total.Hour)) %>%
+  ggplot(aes(x=PurchaseHour, y=Total)) +
+  geom_col() +
+  scale_x_continuous(breaks=seq(6, 20)) +
+  facet_wrap(~WeekDay, ncol=2)
+```
+發現某個週三的晚上有異常的值，探索該異常值發生的日期
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  filter(TransactionType=="Purchase") %>%
+  mutate(PurchaseDate=as.Date(InvoiceDate), PurchaseHour=hour(InvoiceDate)) %>%
+  group_by(PurchaseDate, PurchaseHour) %>%
+  summarise(Total.Hour=sum(UnitPrice*Quantity)) %>%
+  ungroup() %>%
+  mutate(WeekDay=wday(PurchaseDate, label=TRUE)) %>%
+  filter(PurchaseHour==20)
+```
+發現2011-08-17晚上20點的資料較不尋常，找出當時的交易情形
+```{r}
+Online_Retail %>%
+  filter(InvoiceDate>=as.POSIXct("2011-08-17 20:00:00", tz="UTC") & InvoiceDate<as.POSIXct("2011-08-17 21:00:00", tz="UTC"))
+```
+
+從交易資料發現此筆發票來自德國的一位顧客，查看這位顧客其他的交易紀錄
+```{r}
+customer_x <- Online_Retail %>%
+  filter(InvoiceDate>=as.POSIXct("2011-08-17 20:00:00", tz="UTC") & InvoiceDate<as.POSIXct("2011-08-17 21:00:00", tz="UTC")) %>%
+  pull(CustomerID)
+
+Online_Retail %>%
+  filter(CustomerID==customer_x[1]) %>%
+  group_by(InvoiceDate, InvoiceNo) %>%
+  summarise(Total=sum(UnitPrice*Quantity))
+```
+
+顧客的購買金額
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  filter(TransactionType=="Purchase") %>%
+  group_by(CustomerID) %>%
+  summarise(Total=sum(UnitPrice*Quantity)) %>%
+  arrange(desc(Total))
+```
+
+將顧客的購買金額畫成圖形
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  filter(TransactionType=="Purchase") %>%
+  group_by(CustomerID) %>%
+  summarise(Total=sum(UnitPrice*Quantity)) %>%
+  arrange(desc(Total)) %>%
+  mutate(cum.percent=cumsum(Total)/sum(Total)*100, rank=row_number()) %>%
+  ggplot(aes(x=rank, y=cum.percent)) +
+  geom_line() +
+  scale_y_continuous(breaks=seq(0, 100, 10))
+```
+
+依據購買金額排序商品
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  filter(TransactionType=="Purchase") %>%
+  group_by(Description) %>%
+  summarise(Total=sum(UnitPrice*Quantity)) %>%
+  arrange(desc(Total))
+```
+
+依據取消金額排序商品
+```{r}
+Online_Retail %>%
+  mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%
+  filter(TransactionType=="Cancel") %>%
+  group_by(Description) %>%
+  summarise(Total=sum(UnitPrice*Quantity)) %>%
+  arrange(Total)
+```
+

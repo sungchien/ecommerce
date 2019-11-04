@@ -2,13 +2,29 @@
 
 (https://towardsdatascience.com/predict-customer-churn-with-r-9e62357d47b4)
 
-預測客戶流失行為，維繫顧客關係 除了精確掌握目標族群需求，AI和機器學習還能夠進行客戶流失預測。透過AI工具分析目標族群，建立預測模型，並對真實客戶的模型進行測試和驗證，能夠及早發現目標族群在什麼階段可能對品牌產生變動行為，有助品牌應對，降低客戶流失，提高用戶參與。 對於開始使用後很快會棄用的消費者（quick-churn），品牌不易和他們重新開啟互動；但對於和品牌有長期關係的客群（late-churn），可以在他們使用時間縮短等「流失」指標出現時，投遞優惠、信件等內容，提高消費者參與度。 
+為了精確掌握目標族群的動向，可以利用機器學習進行顧客流失分析。透過分析目標族群的消費資料，建立預測模型，運用建立的模型進行及早發現目標族群的變動，有助品牌應對，降低顧客流失。
+
+流失的顧客分為兩種：
+
+1. 開始使用後很快會棄用的消費者(quick-churn)：對於這類顧客，不易和他們重新開啟互動。
+
+2. 和品牌有長期關係的客群(late-churn)：可以在發現他們消費的時間間距增加等「流失」指標出現時，投遞優惠、信件等內容，提高消費者參與度。 
+
+本次課程將根據顧客的消費資料，建立模型，預測可能流失的顧客。
+
+## 顧客流失分析預測模型
+
+當以往經常消費的顧客間隔太久的時間沒來消費時，我們可以假定他很有可能已經流失了。那麼這個時間間隔應該有多長呢？我們可以利用他們過去的消費間隔來預測。我們假定可以找到在某一個時間間隔內，顧客會回來的機率有90%。所以我們從過去的資料去推算，在過去的資料中，前後兩次的購物時間間隔，有90%落在這個時間間隔之內。
+
+## 顧客流失分析實作
+
+本次課程仍然運用上次課程使用的[線上零售資料集](https://archive.ics.uci.edu/ml/datasets/Online+Retail)。
 
 載入套件
 ```{r}
 library(tidyverse)
-library(lubridate)
-library(readxl)
+library(lubridate) #處理時間資料
+library(readxl) #讀取excel檔案
 ```
 
 讀取資料集檔案[線上零售資料集](https://archive.ics.uci.edu/ml/datasets/Online+Retail)
@@ -16,113 +32,73 @@ library(readxl)
 Online_Retail <- read_excel("Online Retail.xlsx")
 ```
 
-檢視資料集，這是一個發票的檔案，包含發票編號(InvoiceNo)、貨品編號(StockCode)、描述(Description)、數量(Quantity)、發票日期(InvoiceDate)、單價(UnitPrice)、顧客識別號(CustomerID)、國別(Country)等變數欄位。
-```{r}
-summary(Online_Retail)
-```
+檔案中包含發票編號(InvoiceNo)、貨品編號(StockCode)、描述(Description)、數量(Quantity)、發票日期(InvoiceDate)、單價(UnitPrice)、顧
 
-其中，顧客識別號(CustomerID)有許多NA(Not-Available)，先將這些資料去除，保留非NA的資料
+首先，去除顧客識別號(CustomerID)資料中的NA(Not-Available)，保留非NA的資料，然後再選取發票日期(InvoiceDate)在2010-12-09到2011-12-09之間的資料。
 ```{r}
 Online_Retail <- Online_Retail %>%
-  filter(!is.na(CustomerID))
+  filter(!is.na(CustomerID)) %>% #去除去除顧客識別號中的NA
+  filter(InvoiceDate>=as.POSIXct("2010-12-09")) #選取2010-12-09到2011-12-09之間的資料
 ```
 
-發票日期(InvoiceDate)在2010-12-01到2011-12-09間，稍微超過一年，為了方便計算起見，取2010-12-09到2011-12-09之間的資料
+計算每一個顧客每一筆發票上的消費金額總數(sum(UnitPrice*Quantity))，然後去除退貨資料，保留購物資料(消費金額總數>0)
 ```{r}
-Online_Retail <- Online_Retail %>%
-  filter(InvoiceDate>=as.Date("2010-12-09"))
-```
-
-計算每個顧客的最近購買日期(與2011-12-10的差)和購買頻率(一年的購買次數)。
-
-- 首先，依據發票編號是否包含"C"，利用`!grepl()`函數將發票紀錄區分為購買(purchase)或退貨(return)兩類，只計算購買紀錄(沒有包含C)，去除退貨紀錄(包含C)。
-- 計算購買日期與2011-12-10差幾天，並利用`as.numeric()`函數將其資料型態轉成numeric
-- 依據CustomerID，將發票紀錄分組，統計每個使用者的最近購買日期(與2011-12-10差距最小者)和購買頻率(不同的發票編號，一年內購買幾次)
-```{r}
-customers <- Online_Retail %>%
-  filter(!grepl("C", InvoiceNo)) %>% #只計算購買紀錄，去除退貨紀錄
-  mutate(date.diff = as.numeric(as.Date("2011-12-10") - as.Date(InvoiceDate))) %>% #計算購買日期與2011-12-10差幾天
-  group_by(CustomerID) %>% #依據CustomerID，將發票紀錄分組
-  summarise(recency = min(date.diff),        #最近購買日期
-            frequency=n_distinct(InvoiceNo)) #購買頻率(一年內購買幾次)
-```
-
-計算每個顧客的購買金額(減去退貨的情形)
-
-- 依據CustomerID，將發票紀錄分組，統計每個使用者的消費紀錄總和(單價*數量)
-- 去除消費紀錄總和為負的情形(退貨金額大於購買金額)
-```{r}
-customers1 <- Online_Retail %>%
-  group_by(CustomerID) %>%
-  summarise(monetary=sum(UnitPrice*Quantity)) %>%
-  filter(monetary>=0)
-```
-
-整合最近購買日期、購買頻率和購買金額的資料
-```{r}
-customers <- customers %>%
-  inner_join(customers1)
-```
-
-檢視各特徵的統計敘述
-```{r}
-summary(customers)
-```
-
-```{r}
-customers %>%
-  filter(frequency>=20)
-```
-
-計算每一筆紀錄的消費金額(數量*單價)
-```{r}
-Online_Retail <- Online_Retail %>%
-  mutate(Total=Quantity*UnitPrice)
-```
-
-計算每一個顧客每一天每一張發票上的消費金額總數
-```{r}
-txns <- Online_Retail %>% 
-  group_by(CustomerID, InvoiceNo, InvoiceDate) %>% 
-  summarise(Spend = sum(Total)) %>%
+InvoiceData <- Online_Retail %>%
+  group_by(CustomerID, InvoiceNo, InvoiceDate) %>%
+  summarise(Spend = sum(UnitPrice*Quantity)) %>% # 將每一筆紀錄的消費金額(單價*數量)加總
   ungroup() %>% 
   filter(Spend>0) #去除退貨資料，保留購物資料
 ```
 
-每一個顧客前後筆購物資料時間差距
+每一個顧客前後筆發票資料時間差距
 ```{r}
-time_between <- txns %>% 
-  arrange(CustomerID, InvoiceDate) %>% 
+TimeBetweenInvoice <- InvoiceData %>% 
+  arrange(CustomerID, InvoiceDate) %>% #依照每位顧客的發票時間排序
   group_by(CustomerID) %>% 
-  mutate(dt = as.numeric(InvoiceDate - lag(InvoiceDate), unit=  'days')) %>% 
-  ungroup() %>% 
-  filter(!is.na(dt))
+  mutate(dt = as.numeric(InvoiceDate - lag(InvoiceDate), unit=  'days')) %>% #當筆發票的時間減去前一筆發票的時間
+  ungroup()
 ```
 
-購買紀錄大於20筆的顧客資料
-```{r}
-Ntrans <- txns %>% 
-  group_by(CustomerID) %>% 
-  summarise(N = n()) %>%
-  filter(N>20)
-```
 
-每一位顧客的
+計算每一位顧客的交易數(發票數)，然後保留較多交易數者(TransactionNo>=20)
 ```{r}
-ecdf_df <- time_between %>%
+FreqCustomers <- TimeBetweenInvoice %>%
   group_by(CustomerID) %>%
+  summarise(TransactionNo=n()) %>%
+  filter(TransactionNo>=20)
+```
+
+交易數較多顧客的前後筆發票資料時間差距
+```{r}
+TimeBetweenInvoice.FreqCustomers <- TimeBetweenInvoice %>%
+  filter(CustomerID %in% FreqCustomers$CustomerID) %>%
+  filter(!is.na(dt)) %>%
+  arrange(CustomerID, desc(InvoiceDate))
+```
+
+計算每位交易數較多顧客的最近一筆交易和2011-12-10之間的時間間隔
+```{r}
+TestingData <- TimeBetweenInvoice.FreqCustomers %>%
+  group_by(CustomerID) %>%
+  slice(1) %>%
+  mutate(until_dt=as.numeric(as.POSIXct("2011-12-10")-InvoiceDate, unit=  'days')) %>%
+  select(CustomerID, until_dt)
+```
+
+計算每位交易數較多顧客在過去交易情形下，累積機率90%之內的時間間隔，作為預測流失的時間基準
+```{r}
+CustomerMaxDays <- TimeBetweenInvoice.FreqCustomers %>%
+  select(CustomerID, dt) %>%
   arrange(CustomerID, dt) %>%
-  mutate(e_cdf = 1:length(dt)/length(dt)) %>%
-  ungroup
+  group_by(CustomerID) %>%
+  mutate(e_cdf=(1:n())/n()) %>% #根據時間間隔的數量，計算每個時間間隔的機率
+  summarise(threshold=approx(e_cdf, dt, xout=0.9)$y) #累積機率90%之內的時間間隔
 ```
 
+比較最後一次到2011-12-10的時間間隔和預測流失的時間基準，找出可能流失的顧客
 ```{r}
-approx(ecdf_df$e_cdf[ecdf_df$CustomerID==ecdf_df$CustomerID[1]], ecdf_df$dt[ecdf_df$CustomerID==ecdf_df$CustomerID[1]], xout=0.9)
-```
-
-```{r}
-x <- percentiles %>%
-  filter(CustomerID==.$CustomerID[1]) %>%
-  arrange(dt)
+TestingData %>%
+  inner_join(CustomerMaxDays) %>%
+  filter(until_dt>=threshold)
 ```
 

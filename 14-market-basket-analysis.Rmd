@@ -36,8 +36,28 @@ Online_Retail <- Online_Retail %>%
 ```
 
 ```{r}
-PurchaseItem <- Online_Retail %>%
-  group_by(CustomerID, Date) %>%
-  summarise(itemList=paste(Description, collapse = ","))
+retail <- Online_Retail %>%
+  select(InvoiceNo, Description) %>%
+  mutate(InvoiceNo=as.factor(InvoiceNo))
+```
+
+```{r}
+write.table(retail, file = tmp <- file(), row.names = FALSE)
+```
+
+```{r}
+trans <- read.transactions(tmp,
+                           format = "single",
+                           header = TRUE,
+                           cols = c("InvoiceNo", "Description"))
+close(tmp)
+```
+
+```{r}
+summary(trans)
+```
+
+```{r}
+itemFrequencyPlot(trans, topN=20, type='absolute')
 ```
 

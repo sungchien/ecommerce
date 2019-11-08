@@ -154,6 +154,7 @@ Online_Retail %>%
   geom_boxplot()
 ```
 
+
 ```{r}
 Online_Retail %>%
   mutate(TransactionType=ifelse(grepl("C", InvoiceNo, fixed=TRUE), "Cancel", "Purchase")) %>%

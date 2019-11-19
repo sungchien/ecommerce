@@ -6,3 +6,6 @@ _book
 _bookdown_files
 rsconnect
 *.tsv
+.ipynb_checkpoints/11-exploratory-data-analysis-checkpoint.ipynb
+mercari/.ipynb_checkpoints/mercari-interactive-eda-topic-modelling-checkpoint.ipynb
+.ipynb_checkpoints/11-exploratory-data-analysis-checkpoint.ipynb

@@ -10,3 +10,6 @@ rsconnect
 mercari/.ipynb_checkpoints/mercari-interactive-eda-topic-modelling-checkpoint.ipynb
 .ipynb_checkpoints/11-exploratory-data-analysis-checkpoint.ipynb
 .ipynb_checkpoints/10-fundamental-for-data-analysis-checkpoint.ipynb
+*.png
+*.zip
+*.md

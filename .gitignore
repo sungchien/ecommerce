@@ -13,3 +13,4 @@ mercari/.ipynb_checkpoints/mercari-interactive-eda-topic-modelling-checkpoint.ip
 *.png
 *.zip
 *.md
+.ipynb_checkpoints/11-exploratory-data-analysis-checkpoint.ipynb

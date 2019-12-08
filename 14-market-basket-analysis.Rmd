@@ -8,7 +8,7 @@ https://towardsdatascience.com/a-gentle-introduction-on-market-basket-analysis-a
 
 ###購物籃分析的概念
 
-購物籃分析的演算概念主要為兩個機率統計量的計算，分別為**支持度(support)**和**信賴度(confidence)**。以下用一個例子來說明支持度和信賴度的意義與計算方式。如下圖所示，假定所有的發票共有2000筆(以下以$C$代表)，包含A產品的發票有1250(750+500)筆(以$C_{A}$代表)，包含B產品的發票則有1000(500+500)筆(以$C_{A}$代表)，同時包含A產品與B產品的發票有500筆。
+購物籃分析的演算概念主要為兩個機率統計量的計算，分別為**支持度(support)**和**信賴度(confidence)**。以下用一個例子來說明支持度和信賴度的意義與計算方式。如下圖所示，假定所有的發票共有2000筆(以下以$C$代表)，包含A產品的發票有1250(750+500)筆(以$C_{A}$代表)，包含B產品的發票則有1000(500+500)筆(以$C_{B}$代表)，同時包含A產品與B產品的發票有500筆。
 
 ![](image/mbdata.png)
 
@@ -38,7 +38,7 @@ https://towardsdatascience.com/a-gentle-introduction-on-market-basket-analysis-a
 ###資料的讀入與預處理
 
 首先載入套件，如果第一次使用`arules`和`arulesViz`套件，需要先使用`install.packages()`安裝套件。
-```{r}
+```{r }
 library(tidyverse)
 library(lubridate) #處理時間資料
 library(readxl) #讀取excel檔案
@@ -84,10 +84,22 @@ unlink("tmp") #刪除暫存檔
 summary(trans)
 ```
 結果共有17858筆交易，3819種貨品。
-較常購買的商品有WHITE HANGING HEART T-LIGHT HOLDER、REGENCY CAKESTAND 3 TIER、
+較常購買的商品有WHITE HANGING HEART T-LIGHT HOLDER、REGENCY CAKESTAND 3 TIER、JUMBO BAG RED RETROSPOT等。
 
-
+畫出前二十種最常交易的商品
 ```{r}
 itemFrequencyPlot(trans, topN=20, type='absolute')
+```
+
+```{r}
+rules <- apriori(trans, parameter = list(supp=0.01, conf=0.8))
+```
+
+```{r}
+summary(rules)
+```
+
+```{r}
+inspect(rules)
 ```
 

@@ -85,20 +85,25 @@ summary(trans)
 ```
 結果共有17858筆交易，3819種貨品。
 較常購買的商品有WHITE HANGING HEART T-LIGHT HOLDER、REGENCY CAKESTAND 3 TIER、JUMBO BAG RED RETROSPOT等。
+1337筆發票中只有一項購買貨品，兩項和三項貨品的發票則各有687筆和609筆，其餘如表列。最多貨品的發票為541項，中位數為15，平均數為21.03，故其分布有明顯的右偏(right skewed)。
 
 畫出前二十種最常交易的商品
 ```{r}
 itemFrequencyPlot(trans, topN=20, type='absolute')
 ```
 
+關連規則探勘，設定參數support為0.01，confidence為0.8。
 ```{r}
 rules <- apriori(trans, parameter = list(supp=0.01, conf=0.8))
 ```
+共找出17條規則。
 
 ```{r}
 summary(rules)
 ```
+觀察上面的數值，這些規則的support最大值為0.02576，最小值為0.01036，confidence最大值為0.9391，最小值為0.8079，此外lift值都相當高，明顯大於1，表示規則兩端的情形為正向關係。
 
+查看每一條規則。
 ```{r}
 inspect(rules)
 ```
